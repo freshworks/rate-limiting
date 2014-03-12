@@ -3,6 +3,7 @@ require "rule"
 
 class RateLimiting
 
+  SHARD = 1000
   def initialize(app, &block)
     @app = app
     @logger =  nil
@@ -89,11 +90,29 @@ class RateLimiting
     end
   end
 
+  def cache_hexists(hash,field)
+    case
+    when cache.respond_to?(:hexists)
+      return cache.hexists(hash, field)
+    end
+  end
+
+  def whitelist?(key)
+    hash_key = partioning_hash(key)
+    field = key
+    cache_hexists(hash_key,field)
+  end 
+
+  def partioning_hash(ip)
+    "whitelist"+(ip.gsub(".","").to_i%1000).to_s
+  end
+
   def logger
     @logger || Rack::NullLogger.new(nil)
   end
 
   def allowed?(request)
+    return true if whitelist?(request.ip)
     if rule = find_matching_rule(request)
       logger.debug "[#{self}] #{request.ip}:#{request.path}: Rate limiting rule matched."
       apply_rule(request, rule)
