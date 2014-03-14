@@ -112,8 +112,8 @@ class RateLimiting
   end
 
   def allowed?(request)
-    return true if whitelist?(request.ip)
     if rule = find_matching_rule(request)
+      return true if whitelist?(request.ip)
       logger.debug "[#{self}] #{request.ip}:#{request.path}: Rate limiting rule matched."
       apply_rule(request, rule)
     else
