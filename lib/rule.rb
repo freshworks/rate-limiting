@@ -48,6 +48,10 @@ class Rule
     end
   end
 
+  def get_expiration_sec
+    (@options[:type] == :frequency) ? get_frequency : get_fixed 
+  end
+
   def get_key(request)
     key = (@options[:per_url] ? request.path : @options[:match].to_s)
     key = key + request.ip.to_s if @options[:per_ip]
