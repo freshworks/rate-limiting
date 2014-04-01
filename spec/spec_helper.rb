@@ -1,6 +1,8 @@
 require 'rspec'
 require 'rack/test'
 require 'rate_limiting'
+require 'redis'
+require 'debugger'
 
 def test_app
   @test_app ||= mock("Test Rack App")
@@ -25,6 +27,8 @@ def app
     r.define_rule(:match => '/header', :metric => :rph, :type => :frequency, :limit => 60)
     r.define_rule(:match => '/per_match/.*', :metric => :rph, :type => :frequency, :limit => 60, :per_url => false)
     r.define_rule(:match => '/per_url/.*', :metric => :rph, :type => :frequency, :limit => 60, :per_url => true)
+    $store = Redis.new(:host => "127.0.0.1", :port => "6379")
+    r.set_cache($store)
   end 
 end
 

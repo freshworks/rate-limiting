@@ -6,6 +6,11 @@ describe "response headers" do
   context "limited request" do
     before(:each) do
       get '/header', {}, {'HTTP_ACCEPT' => 'text/html'}
+      $store.flushdb
+    end
+
+    after(:all) do
+      $store.flushdb
     end
 
     it 'should have x-RateLimit-Limit' do

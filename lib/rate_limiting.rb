@@ -1,5 +1,6 @@
 require "json"
 require "rule"
+require 'timeout'
 
 class RateLimiting
 
