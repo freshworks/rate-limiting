@@ -4,6 +4,7 @@ require "rule"
 class RateLimiting
 
   SHARD = 1000
+  RequestTimeoutRateLimit = 1
   def initialize(app, &block)
     @app = app
     @logger =  nil
@@ -120,9 +121,15 @@ class RateLimiting
 
   def allowed?(request)
     if rule = find_matching_rule(request)
-      return true if whitelist?(request.ip)
-      logger.debug "[#{self}] #{request.ip}:#{request.path}: Rate limiting rule matched."
-      apply_rule(request, rule)
+      begin
+        Timeout::timeout(RequestTimeoutRateLimit) do
+          return true if whitelist?(request.ip)
+          logger.debug "[#{self}] #{request.ip}:#{request.path}: Rate limiting rule matched."
+          apply_rule(request, rule)
+        end
+      rescue Exception => e
+        true
+      end
     else
       true
     end
