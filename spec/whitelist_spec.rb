@@ -29,5 +29,11 @@ describe "whilisting of ip" do
   	2.times { get '/fixed/rpm', {}, {'HTTP_ACCEPT' => "text/html"} }
   	last_response.body.should show_not_allowed_response
   end
+
+  it "should timeout when it is unable to connect" do
+    RateLimiting.any_instance.stub(:whitelist?).and_raise(Timeout::Error)
+    2.times { get '/fixed/rpm', {}, {'HTTP_ACCEPT' => "text/html"} }
+    last_response.body.should show_allowed_response
+  end
   
 end
