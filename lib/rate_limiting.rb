@@ -5,7 +5,7 @@ require 'timeout'
 class RateLimiting
 
   SHARD = 1000
-  RequestTimeoutRateLimit = 1
+  RequestTimeoutRateLimit = 2
   def initialize(app, &block)
     @app = app
     @logger =  nil
@@ -125,10 +125,10 @@ class RateLimiting
       begin
         Timeout::timeout(RequestTimeoutRateLimit) do
           return true if whitelist?(request.ip)
-          logger.debug "[#{self}] #{request.ip}:#{request.path}: Rate limiting rule matched."
           apply_rule(request, rule)
         end
       rescue Exception => e
+        NewRelic::Agent.notice_error(e)
         true
       end
     else
