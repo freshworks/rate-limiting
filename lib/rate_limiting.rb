@@ -1,5 +1,6 @@
 require "json"
 require "rule"
+require "rate_limit_html"
 require 'timeout'
 
 class RateLimiting
@@ -30,7 +31,7 @@ class RateLimiting
     when "text/xml"         then message, type  = xml_error("403", "Rate Limit Exceeded"), "text/xml"
     when "application/json" then  message, type  = ["Rate Limit Exceeded"].to_json, "application/json"
     else
-      message, type  = ["Rate Limit Exceeded"], "text/html"
+      message, type  = [RateLimitHtml::HTML], "text/html"
     end
     [403, {"Content-Type" => type}, message]
   end
