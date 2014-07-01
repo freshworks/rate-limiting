@@ -19,7 +19,7 @@ class Rule
   end
 
   def limit
-    (@options[:type] == :frequency ? 1 : @options[:limit])
+    (@options[:type] == :frequency ? @options[:frequency_limit] : @options[:limit])
   end
 
   def get_expiration
