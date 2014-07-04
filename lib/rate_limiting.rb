@@ -1,5 +1,6 @@
 require "json"
 require "rule"
+require "ip_range"
 require "rate_limit_html"
 require 'timeout'
 
@@ -7,6 +8,8 @@ class RateLimiting
 
   SHARD = 1000
   RequestTimeoutRateLimit = 2
+  IPRange = IpRange.new
+  DDOS = "ddos"
   def initialize(app, &block)
     @app = app
     @logger =  nil
@@ -107,14 +110,38 @@ class RateLimiting
     end
   end
 
+  def cache_rpush(key,value)
+    case
+    when cache.respond_to?(:rpush)
+      cache.rpush(key,value)
+    end
+  end
+
   def whitelist?(key)
     hash_key = partioning_hash(key)
     field = key
     cache_hexists(hash_key,field)
   end 
 
+  def blacklist?(key)
+    hash_key = partioning_hash_blacklist(key)
+    cache_hexists(hash_key,key)
+  end
+
+  def blacklisting_ip(request)
+    return true if blacklist?(request.ip)
+    if ddos
+      return true if IPRange.check_presence_of_ip(request.ip)
+    end
+    return false
+  end
+
   def partioning_hash(ip)
     "whitelist"+(ip.gsub(".","").to_i%1000).to_s
+  end
+
+  def partioning_hash_blacklist(ip)
+    "blacklist"+(ip.gsub(".","").to_i%1000).to_s
   end
 
   def logger
@@ -122,19 +149,24 @@ class RateLimiting
   end
 
   def allowed?(request)
-    if rule = find_matching_rule(request)
-      begin
-        Timeout::timeout(RequestTimeoutRateLimit) do
-          return true if whitelist?(request.ip)
-          apply_rule(request, rule)
-        end
-      rescue Exception => e
-        NewRelic::Agent.notice_error(e)
+    begin
+      Timeout::timeout(RequestTimeoutRateLimit) do
+        return true if whitelist?(request.ip)
+        return false if blacklisting_ip(request)
+      end
+      if rule = find_matching_rule(request)
+        apply_rule(request, rule)
+      else
         true
       end
-    else
+    rescue Exception => e
+      NewRelic::Agent.notice_error(e)
       true
     end
+  end
+
+  def ddos
+    cache_has?(DDOS)
   end
 
   def find_matching_rule(request)
