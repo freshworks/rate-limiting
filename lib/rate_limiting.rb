@@ -150,10 +150,8 @@ class RateLimiting
 
   def allowed?(request)
     begin
-      Timeout::timeout(RequestTimeoutRateLimit) do
-        return true if whitelist?(request.ip)
-        return false if blacklisting_ip(request)
-      end
+      return true if whitelist?(request.ip)
+      return false if blacklisting_ip(request)
       if rule = find_matching_rule(request)
         apply_rule(request, rule)
       else
