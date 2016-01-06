@@ -16,7 +16,7 @@ HTML = %Q(<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
         <h2>Support portal has been blocked.</h2>
         <p>Due to high volume of page requests, we have blocked your IP address.</p>
         <p>
-          Questions? Contact <a href="mailto:support@freshdesk.com">support@freshdesk.com</a>
+          Questions? Contact <a href="mailto:support@freshservice.com">support@freshservice.com</a>
         </p><br />
     </div>
 </body>
