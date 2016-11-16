@@ -21,7 +21,7 @@ class RateLimiting
   def call(env)
     request = Rack::Request.new(env)
     @logger = env['rack.logger']
-    (limit_header = allowed?(request)) ? respond(env, limit_header) : rate_limit_exceeded(env['HTTP_ACCEPT'])
+    (limit_header = allowed?(request)) ? respond(env, limit_header) : rate_limit_exceeded(env['HTTP_ACCEPT'], env['CONTENT_TYPE'])
   end
 
   def respond(env, limit_header)
@@ -29,10 +29,9 @@ class RateLimiting
     (limit_header.class == Hash) ? [status, header.merge(limit_header), response] : [status, header, response]
   end
 
-  def rate_limit_exceeded(accept)
-    case accept.to_s.gsub(/;.*/, "").split(',')[0]
-    when "text/xml"         then message, type  = xml_error("403", "Rate Limit Exceeded"), "text/xml"
-    when "application/json" then  message, type  = ["Rate Limit Exceeded"].to_json, "application/json"
+  def rate_limit_exceeded(accept, content_type)
+    if (accept.to_s.gsub(/;.*/, "").split(',')[0] == "application/json") || (content_type == "application/json")
+      message, type  = ["Reached the limit of requests. Your access is temporary restricted"].to_json, "application/json"
     else
       message, type  = [RateLimitHtml::HTML], "text/html"
     end
@@ -176,34 +175,40 @@ class RateLimiting
 
   def apply_rule(request, rule)
     key = rule.get_key(request)
-    if cache_has?(key)
-      record = cache_get(key)
-      logger.debug "[#{self}] #{request.ip}:#{request.path}: Rate limiting entry: '#{key}' => #{record}"
+    record = cache_get(key)
+    if record
+      logger.debug "[#{self}] #{request.ip}:#{request.host}/#{request.path}: Rate limiting entry: '#{key}' => #{record}"
+
       current_time = Time.now
-      if (reset = Time.at(record.split(':')[1].to_i)) > current_time
+      records = record.split(":")
+      request_count = records[0].to_i
+      reset = Time.at(records[1].to_i)
+      rule_limit = records[2].to_i
+
+      if reset > current_time
         # rule hasn't been reset yet
-        times = record.split(':')[0].to_i
-        cache_setex(key, (reset.to_i - current_time.to_i ), "#{times + 1}:#{reset.to_i}")
-        if (times) < rule.limit
+        cache_setex(key, (reset.to_i - current_time.to_i), "#{request_count + 1}:#{reset.to_i}:#{rule_limit}")
+        if (request_count) < rule_limit
           # within rate limit
-          response = get_header(times + 1, reset, rule.limit)
+          response = get_header(request_count + 1, reset, rule_limit)
         else
-          logger.debug "[#{self}] #{request.ip}:#{request.path}: Rate limited; request rejected."
+          logger.info "[#{self}] #{request.ip}:#{request.host}/#{request.path}: Rate limited; request rejected."
           return false
         end
       else
-        response = get_header(1, rule.get_expiration, rule.limit)
-        cache_setex(key, rule.get_expiration_sec, "1:#{rule.get_expiration.to_i}")
+        response = get_header(1, rule.get_expiration, rule_limit)
+        cache_setex(key, rule.get_expiration_sec, "1:#{rule.get_expiration.to_i}:#{rule_limit}")
       end
     else
-      response = get_header(1, rule.get_expiration, rule.limit)
-      cache_setex(key, rule.get_expiration_sec, "1:#{rule.get_expiration.to_i}")
+      rule_limit = rule.limit request
+      response = get_header(1, rule.get_expiration, rule_limit)
+      cache_setex(key, rule.get_expiration_sec, "1:#{rule.get_expiration.to_i}:#{rule_limit}")
     end
     response
   end
 
-  def get_header(times, reset, limit)
-    {'x-RateLimit-Limit' => limit.to_s, 'x-RateLimit-Remaining' => (limit - times).to_s, 'x-RateLimit-Reset' => reset.strftime("%d%m%y%H%M%S") }
+  def get_header(request_count, reset, limit)
+    {'x-RateLimit-Limit' => limit.to_s, 'x-RateLimit-Remaining' => (limit - request_count).to_s, 'x-RateLimit-Reset' => reset.strftime("%d%m%y%H%M%S") }
   end
 
   def xml_error(code, message)

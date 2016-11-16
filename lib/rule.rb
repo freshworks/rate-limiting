@@ -1,3 +1,5 @@
+require "#{::Rails.root}/lib/custom_rate_limit" if File.exists?(File.join(::Rails.root, 'lib', 'custom_rate_limit.rb'))
+
 class Rule
 
   def initialize(options)
@@ -8,6 +10,7 @@ class Rule
       :limit => 100,
       :per_ip => true,
       :per_url => false,
+      :per_host => false,
       :token => false
     }
     @options = default_options.merge(options)
@@ -18,8 +21,15 @@ class Rule
     @options[:match].class == String ? Regexp.new(@options[:match] + "$") : @options[:match]
   end
 
-  def limit
-    (@options[:type] == :frequency ? @options[:frequency_limit] : @options[:limit])
+  def limit request
+    rule_limit = nil
+    if @options[:custom_limit]
+      rule_limit = CustomRateLimit.send(@options[:custom_limit], request)
+    else
+      rule_limit = (@options[:type] == :frequency ? @options[:frequency_limit] : @options[:limit])
+    end
+
+    return rule_limit
   end
 
   def get_expiration
@@ -55,6 +65,7 @@ class Rule
   def get_key(request)
     key = (@options[:per_url] ? request.path : @options[:match].to_s)
     key = key + request.ip.to_s if @options[:per_ip]
+    key = key + request.host.to_s if @options[:per_host]
     key = key + request.params[@options[:token].to_s] if @options[:token]
     key
   end
