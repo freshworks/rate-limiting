@@ -20,7 +20,6 @@ class RateLimiting
 
   def call(env)
     request = Rack::Request.new(env)
-    @logger = env['rack.logger']
     (limit_header = allowed?(request)) ? respond(env, limit_header) : rate_limit_exceeded(env['HTTP_ACCEPT'], env['CONTENT_TYPE'])
   end
 
@@ -143,6 +142,10 @@ class RateLimiting
     "blacklist"+(ip.gsub(".","").to_i%1000).to_s
   end
 
+  def set_logger(logger)
+    @logger = logger
+  end
+
   def logger
     @logger || Rack::NullLogger.new(nil)
   end
@@ -177,7 +180,7 @@ class RateLimiting
     key = rule.get_key(request)
     record = cache_get(key)
     if record
-      logger.debug "[#{self}] #{request.ip}:#{request.host}/#{request.path}: Rate limiting entry: '#{key}' => #{record}"
+      logger.debug "[#{self}] #{request.ip}:#{request.host}#{request.path}: Rate limiting entry: '#{key}' => #{record}"
 
       current_time = Time.now
       records = record.split(":")
