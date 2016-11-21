@@ -30,7 +30,7 @@ class RateLimiting
 
   def rate_limit_exceeded(accept, content_type)
     if (accept.to_s.gsub(/;.*/, "").split(',')[0] == "application/json") || (content_type == "application/json")
-      message, type  = ["Reached the limit of requests. Your access is temporary restricted"].to_json, "application/json"
+      message, type  = ["Reached the limit of requests. Your access is temporarily restricted."], "application/json"
     else
       message, type  = [RateLimitHtml::HTML], "text/html"
     end
