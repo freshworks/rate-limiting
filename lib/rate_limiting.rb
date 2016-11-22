@@ -34,7 +34,7 @@ class RateLimiting
     else
       message, type  = [RateLimitHtml::HTML], "text/html"
     end
-    [403, {"Content-Type" => type}, message]
+    [429, {"Content-Type" => type}, message]
   end
 
   def define_rule(options)
