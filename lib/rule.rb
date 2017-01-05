@@ -65,9 +65,32 @@ class Rule
   def get_key(request)
     key = (@options[:per_url] ? request.path : @options[:match].to_s)
     key = key + request.ip.to_s if @options[:per_ip]
-    key = key + request.host.to_s if @options[:per_host]
-    key = key + request.params[@options[:token].to_s] if @options[:token]
+    key = key + ':' + request.host.to_s if @options[:per_host]
+
+    request_params = request.params.present? ? request.params : request.env["action_dispatch.request.request_parameters"]
+    key = key + ':' + request_params[@options[:token].to_s] if @options[:token]
+    key = key + ':' + @options[:param_keys].inject("") {|result, param_key| result += get_param_key_value(request_params, param_key.split(".")) } if @options[:param_keys]
+
     key
   end
+
+  def get_status_code
+    @options[:status_code]
+  end
+
+  def get_param_key_value params, key_path
+    if params.is_a? Hash
+      key = key_path.delete_at(0)
+
+      if key_path.any?
+        return get_param_key_value(params[key], key_path) 
+      else
+        return params[key].to_s
+      end
+    else
+      return ""
+    end
+  end
+
 end
 

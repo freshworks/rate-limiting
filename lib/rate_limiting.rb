@@ -34,7 +34,7 @@ class RateLimiting
     else
       message, type  = [RateLimitHtml::HTML], "text/html"
     end
-    [429, {"Content-Type" => type}, message]
+    [@status_code || 403, {"Content-Type" => type}, message]
   end
 
   def define_rule(options)
@@ -155,7 +155,9 @@ class RateLimiting
       return true if whitelist?(request.ip)
       return false if blacklisting_ip(request)
       if rule = find_matching_rule(request)
-        apply_rule(request, rule)
+        is_allowed = apply_rule(request, rule)
+        @status_code = rule.get_status_code
+        return is_allowed
       else
         true
       end
@@ -191,7 +193,7 @@ class RateLimiting
       if reset > current_time
         # rule hasn't been reset yet
         cache_setex(key, (reset.to_i - current_time.to_i), "#{request_count + 1}:#{reset.to_i}:#{rule_limit}")
-        if (request_count) < rule_limit
+        if rule_limit < 0 || request_count < rule_limit
           # within rate limit
           response = get_header(request_count + 1, reset, rule_limit)
         else
