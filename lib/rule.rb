@@ -32,6 +32,10 @@ class Rule
     return rule_limit
   end
 
+  def skip_throttling? request
+    @options[:skip_limit] ? CustomRateLimit.send(@options[:skip_limit], request) : false
+  end
+
   def get_expiration
     (Time.now + ( @options[:type] == :frequency ? get_frequency : get_fixed ))
   end

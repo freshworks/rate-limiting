@@ -179,10 +179,15 @@ class RateLimiting
   end
 
   def apply_rule(request, rule)
+    if rule.skip_throttling? request
+      logger.debug "[#{self}] #{request.ip}:#{request.host}/#{request.path}: Rate limiting skipped"
+      return true
+    end
+
     key = rule.get_key(request)
     record = cache_get(key)
     if record
-      logger.debug "[#{self}] #{request.ip}:#{request.host}#{request.path}: Rate limiting entry: '#{key}' => #{record}"
+      logger.debug "[#{self}] #{request.ip}:#{request.host}/#{request.path}: Rate limiting entry: '#{key}' => #{record}"
 
       current_time = Time.now
       records = record.split(":")
