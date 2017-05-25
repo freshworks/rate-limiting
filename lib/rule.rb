@@ -53,7 +53,8 @@ class Rule
   end
 
   def get_key(request)
-    key = (@options[:per_url] ? request.path : @options[:match].to_s)
+    path_url = @options[:include_host] ? (request.host.to_s + request.path.to_s) : request.path.to_s
+    key = (@options[:per_url] ? path_url : @options[:match].to_s)
     key = key + request.ip.to_s if @options[:per_ip]
     key = key + request.params[@options[:token].to_s] if @options[:token]
     key
