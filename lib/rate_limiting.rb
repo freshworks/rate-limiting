@@ -21,7 +21,28 @@ class RateLimiting
   def call(env)
     request = Rack::Request.new(env)
     @logger = env['rack.logger']
+    prefetch_cache_values(request)
     (limit_header = allowed?(request)) ? respond(env, limit_header) : rate_limit_exceeded(env['HTTP_ACCEPT'])
+  end
+
+  def prefetch_cache_values(request)
+    @whitelisted = @blacklisted = @ddosed = nil
+    return unless cache.respond_to?(:pipelined)
+
+    begin
+      res = cache.pipelined do
+        cache.hexists(partioning_hash(request.ip), request.ip)
+        cache.hexists(partioning_hash_blacklist(request.ip), request.ip)
+        cache.get(DDOS)
+      end
+    rescue Exception => e
+      NewRelic::Agent.notice_error(e)
+      return
+    end
+
+    @whitelisted = res[0]
+    @blacklisted = res[1]
+    @ddosed = res[2].nil? ? false : res[2]
   end
 
   def respond(env, limit_header)
@@ -56,10 +77,10 @@ class RateLimiting
 
   def cache_has?(key)
     case
-    when cache.respond_to?(:has_key?)
-      cache.has_key?(key)
     when cache.respond_to?(:get)
       cache.get(key) rescue false
+    when cache.respond_to?(:has_key?)
+      cache.has_key?(key)
     when cache.respond_to?(:exist?)
       cache.exist?(key)
     else false
@@ -118,12 +139,14 @@ class RateLimiting
   end
 
   def whitelist?(key)
+    return @whitelisted unless @whitelisted.nil?
     hash_key = partioning_hash(key)
     field = key
     cache_hexists(hash_key,field)
   end 
 
   def blacklist?(key)
+    return @blacklisted unless @blacklisted.nil?
     hash_key = partioning_hash_blacklist(key)
     cache_hexists(hash_key,key)
   end
@@ -164,6 +187,7 @@ class RateLimiting
   end
 
   def ddos
+    return @ddosed unless @ddosed.nil?
     cache_has?(DDOS)
   end
 
