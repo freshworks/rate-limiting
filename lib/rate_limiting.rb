@@ -20,7 +20,7 @@ class RateLimiting
 
   def call(env)
     request = Rack::Request.new(env)
-    (limit_header = allowed?(request)) ? respond(env, limit_header) : rate_limit_exceeded(env['HTTP_ACCEPT'], env['CONTENT_TYPE'])
+    (limit_header = allowed?(request)) ? respond(env, limit_header) : blocked_response(env['HTTP_ACCEPT'], env['CONTENT_TYPE'])
   end
 
   def respond(env, limit_header)
@@ -28,11 +28,11 @@ class RateLimiting
     (limit_header.class == Hash) ? [status, header.merge(limit_header), response] : [status, header, response]
   end
 
-  def rate_limit_exceeded(accept, content_type)
+  def blocked_response(accept, content_type)
     if (accept.to_s.gsub(/;.*/, "").split(',')[0] == "application/json") || (content_type == "application/json")
-      message, type  = ["Reached the limit of requests. Your access is temporarily restricted."], "application/json"
+      message, type  = [@text_message || "Reached the limit of requests. Your access is temporarily restricted."], "application/json"
     else
-      message, type  = [RateLimitHtml::HTML], "text/html"
+      message, type  = [@html_message || RateLimitHtml::HTML], "text/html"
     end
     [@status_code || 403, {"Content-Type" => type}, message]
   end
@@ -152,6 +152,10 @@ class RateLimiting
 
   def allowed?(request)
     begin
+      @status_code = nil
+      @text_message = nil
+      @html_message = nil
+
       return true if whitelist?(request.ip)
       return false if blacklisting_ip(request)
       if rule = find_matching_rule(request)
