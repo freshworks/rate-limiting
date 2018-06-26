@@ -30,7 +30,7 @@ class RateLimiting
 
   def blocked_response(accept, content_type)
     if (accept.to_s.gsub(/;.*/, "").split(',')[0] == "application/json") || (content_type == "application/json")
-      message, type  = [@text_message || "Reached the limit of requests. Your access is temporarily restricted."], "application/json"
+      message, type  = [{ message: @text_message || "Reached the limit of requests. Your access is temporarily restricted." }.to_json], "application/json"
     else
       message, type  = [@html_message || RateLimitHtml::HTML], "text/html"
     end
