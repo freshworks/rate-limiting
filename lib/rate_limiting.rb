@@ -200,8 +200,7 @@ class RateLimiting
 
   def apply_rule(request, rule)
     key = rule.get_key(request)
-    if cache_has?(key)
-      record = cache_get(key)
+    if cache_has?(key) && (record = cache_get(key))    
       logger.debug "[#{self}] #{request.ip}:#{request.path}: Rate limiting entry: '#{key}' => #{record}"
       current_time = Time.now
       if (reset = Time.at(record.split(':')[1].to_i)) > current_time
