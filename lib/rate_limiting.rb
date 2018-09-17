@@ -200,7 +200,7 @@ class RateLimiting
 
   def apply_rule(request, rule)
     key = rule.get_key(request)
-    Rails.logger.info " Key value is @@@@@@ #{key}"
+    logger.debug " Key value is @@@@@@ #{key}"
     if cache_has?(key) && (record = cache_get(key))    
       logger.debug "[#{self}] #{request.ip}:#{request.path}: Rate limiting entry: '#{key}' => #{record}"
       current_time = Time.now
@@ -222,6 +222,8 @@ class RateLimiting
     else
       response = get_header(1, rule.get_expiration, rule.limit)
       cache_setex(key, rule.get_expiration_sec, "1:#{rule.get_expiration.to_i}")
+      Rails.logger.info " Key value is @@@@@@ #{key}    Rails.logger.info"
+      logger.debug "Key value is @@@@@@ #{key}    logger debug"
     end
     response
   end
