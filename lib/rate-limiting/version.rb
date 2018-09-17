@@ -1,5 +1,5 @@
 module Rate
   module Limiting
-    VERSION = "1.0.4"
+    VERSION = "9.9"
   end
 end
