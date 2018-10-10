@@ -1,12 +1,14 @@
 require 'rspec'
+require 'rspec/mocks'
 require 'rack/test'
 require 'rate_limiting'
 require 'redis'
-require 'debugger'
+require 'byebug'
 
 def test_app
-  @test_app ||= mock("Test Rack App")
-  @test_app.stub!(:call).with(anything()).and_return([200, {}, "Test App Body"])
+  @test_app ||= double("Test Rack App")
+  allow(@test_app).to receive(:call).and_return([200, {}, "Test App Body"])
+  #@test_app.stub!(:call).with(anything()).and_return([200, {}, "Test App Body"])
   @test_app
 end
 
@@ -27,12 +29,14 @@ def app
     r.define_rule(:match => '/header', :metric => :rph, :type => :frequency, :limit => 60)
     r.define_rule(:match => '/per_match/.*', :metric => :rph, :type => :frequency, :limit => 60, :per_url => false)
     r.define_rule(:match => '/per_url/.*', :metric => :rph, :type => :frequency, :limit => 60, :per_url => true)
+    r.define_rule(:match => '/per_xff/.*', :metric => :rph, :type => :fixed, :limit => 1, :per_xff_ip => true)
+    r.define_rule(:match => '/per_xff_per_url/.*', :metric => :rph, :type => :fixed, :limit => 1, :per_xff_ip => true, :per_url=>true)
     $store = Redis.new(:host => "127.0.0.1", :port => "6379")
     r.set_cache($store)
   end 
 end
 
-Spec::Matchers.define :show_allowed_response do
+RSpec::Matchers.define :show_allowed_response do
   match do |body|
     body.include?("Test App Body")
   end
@@ -50,7 +54,7 @@ Spec::Matchers.define :show_allowed_response do
   end
 end
 
-Spec::Matchers.define :show_not_allowed_response do
+RSpec::Matchers.define :show_not_allowed_response do
   match do |body|
     body.include?("Rate Limit Exceeded")
   end
