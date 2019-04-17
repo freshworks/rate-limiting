@@ -10,8 +10,8 @@ class RateLimiting
   RequestTimeoutRateLimit = 2
   IPRange = IpRange.new
   DDOS = 'ddos'.freeze
-  HTTP_X_FW_RATELIMITING_MANAGED = 'HTTP_X_FW_RATELIMITING_MANAGED'.freeze
-  TRUE_STRING = true.freeze
+  FD_RATELIMITING_MANAGED = 'FD_RATELIMITING_MANAGED'.freeze
+  TRUE_STRING = 'true'.freeze
 
   def initialize(app, &block)
     @app = app
@@ -26,7 +26,7 @@ class RateLimiting
     @logger = env['rack.logger']
     #  Rate limiting is done in HAProxy using sticky tables for IP, Domain
     #    and Path combinations, with hourly/minute level throttling
-    #  Skip redundant processing with HTTP_X_FW_RATELIMITING_MANAGED header
+    #  Skip redundant processing with FD_RATELIMITING_MANAGED header
     #  This header could be used for any external throttles
     respond(env, nil) if skip_on_header
     prefetch_cache_values(request)
@@ -242,6 +242,6 @@ class RateLimiting
   end
 
   def skip_on_header(request)
-    request.env[HTTP_X_FW_RATELIMITING_MANAGED] == TRUE_STRING
+    request.env[FD_RATELIMITING_MANAGED] == TRUE_STRING
   end
 end
