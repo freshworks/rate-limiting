@@ -9,7 +9,9 @@ class RateLimiting
   SHARD = 1000
   RequestTimeoutRateLimit = 2
   IPRange = IpRange.new
-  DDOS = "ddos"
+  DDOS = 'ddos'.freeze
+  DYNAMIC_RULES_KEY = 'DYNAMIC_RULES_%{rule_name}_%{unique_key}'.freeze
+  DYNAMIC_RULES = 'dynamic_rules'.freeze
   def initialize(app, &block)
     @app = app
     @logger =  nil
@@ -32,7 +34,9 @@ class RateLimiting
     begin
       res = cache.pipelined do
         cache.hexists(partioning_hash(request.ip), request.ip)
+        cache.hexists(partioning_hash(request.host, true), request.host)
         cache.hexists(partioning_hash_blacklist(request.ip), request.ip)
+        cache.hexists(partioning_hash_blacklist(request.host, true), request.host)
         cache.get(DDOS)
       end
     rescue Exception => e
@@ -40,9 +44,9 @@ class RateLimiting
       return
     end
 
-    @whitelisted = res[0]
-    @blacklisted = res[1]
-    @ddosed = res[2].nil? ? false : res[2]
+    @whitelisted = res[0] || res[1]
+    @blacklisted = res[2] || res[3]
+    @ddosed = res[4].nil? ? false : res[4]
   end
 
   def respond(env, limit_header)
@@ -62,6 +66,30 @@ class RateLimiting
 
   def define_rule(options)
     @rules << Rule.new(options)
+  end
+
+  def define_dynamic_rules
+    begin
+      dynamic_rules = cache.smembers(DYNAMIC_RULES)
+      (dynamic_rules || []).each do |rule|
+        options = cache.hgetall(rule).symbolize_keys
+        @rules << Rule.new(options)
+      end
+    rescue StandardError => e
+      NewRelic::Agent.notice_error(e, description: 'Error while defining dynamic rules for RateLimiting')
+    end
+  end
+
+  # To create a dynamic rule in redis, use this method as follows
+  # r = RateLimiting.new('') {}
+  # r.set_cache(<RATE_LIMIT_REDIS_OBJECT>)
+  # r.create_dynamic_rule(:match => "sample/path/.*", :type => :fixed, :metric => :rph, :limit => 300,:per_ip => true ,:per_url => true)
+  def create_dynamic_rule(options)
+    rule_key = format(DYNAMIC_RULES_KEY, rule_name: options[:name], unique_key: Time.now.to_i)
+    options.each do |key, value|
+      cache.hset(rule_key, key, value)
+    end
+    cache.sadd(DYNAMIC_RULES, rule_key)
   end
 
   def set_cache(cache)
@@ -138,33 +166,34 @@ class RateLimiting
     end
   end
 
-  def whitelist?(key)
+  def whitelist?(key, host = false)
     return @whitelisted unless @whitelisted.nil?
-    hash_key = partioning_hash(key)
-    field = key
-    cache_hexists(hash_key,field)
+    hash_key = partioning_hash(key, host)
+    cache_hexists(hash_key, key)
   end 
 
-  def blacklist?(key)
+  def blacklist?(key, host = false)
     return @blacklisted unless @blacklisted.nil?
-    hash_key = partioning_hash_blacklist(key)
-    cache_hexists(hash_key,key)
+    hash_key = partioning_hash_blacklist(key, host)
+    cache_hexists(hash_key, key)
   end
 
-  def blacklisting_ip(request)
-    return true if blacklist?(request.ip)
+  def blacklisting(request)
+    return true if blacklist?(request.ip) || blacklist?(request.host, true)
     if ddos
       return true if IPRange.check_presence_of_ip(request.ip)
     end
     return false
   end
 
-  def partioning_hash(ip)
-    "whitelist"+(ip.gsub(".","").to_i%1000).to_s
+  def partioning_hash(key, host = false)
+    return 'whitelist' + key if host
+    'whitelist' + (key.gsub('.','').to_i%1000).to_s
   end
 
-  def partioning_hash_blacklist(ip)
-    "blacklist"+(ip.gsub(".","").to_i%1000).to_s
+  def partioning_hash_blacklist(key, host = false)
+    return 'blacklist' + key if host
+    'blacklist' + (key.gsub('.','').to_i%1000).to_s
   end
 
   def logger
@@ -173,8 +202,8 @@ class RateLimiting
 
   def allowed?(request)
     begin
-      return true if whitelist?(request.ip)
-      return false if blacklisting_ip(request)
+      return true if whitelist?(request.ip) || whitelist?(request.host, true)
+      return false if blacklisting(request)
       if rule = find_matching_rule(request)
         apply_rule(request, rule)
       else
@@ -193,7 +222,7 @@ class RateLimiting
 
   def find_matching_rule(request)
     @rules.each do |rule|
-      return rule if request.path =~ rule.match
+      return rule if rule.request_path(request) =~ rule.match
     end
     nil
   end
