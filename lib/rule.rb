@@ -12,7 +12,6 @@ class Rule
       :per_xff_ip => false
     }
     @options = default_options.merge(options)
-
   end
 
   def match
@@ -61,5 +60,8 @@ class Rule
     key = key + request.params[@options[:token].to_s] if @options[:token]
     key
   end
-end
 
+  def request_path(request)
+    @options[:include_host] ? request.host.to_s + request.path.to_s : request.path
+  end
+end
