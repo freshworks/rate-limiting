@@ -8,7 +8,8 @@ class Rule
       :limit => 100,
       :per_ip => true,
       :per_url => false,
-      :token => false
+      :token => false,
+      :per_xff_ip => false
     }
     @options = default_options.merge(options)
 
@@ -53,8 +54,10 @@ class Rule
   end
 
   def get_key(request)
-    key = (@options[:per_url] ? request.path : @options[:match].to_s)
+    path_url = @options[:include_host] ? request.host.to_s + request.path.to_s : request.path
+    key = (@options[:per_url] ? path_url : @options[:match].to_s)
     key = key + request.ip.to_s if @options[:per_ip]
+    key = key + request.env['HTTP_X_FORWARDED_FOR'].to_s if @options[:per_xff_ip]
     key = key + request.params[@options[:token].to_s] if @options[:token]
     key
   end
