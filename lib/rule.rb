@@ -1,3 +1,5 @@
+# frozen_string_literal: true
+
 class Rule
 
   def initialize(options)
@@ -16,7 +18,7 @@ class Rule
   end
 
   def match
-    @options[:match].class == String ? Regexp.new(@options[:match] + "$") : @options[:match]
+    @options[:match].class == String ? Regexp.new("#{@options[:match]}$") : @options[:match]
   end
 
   def limit
@@ -56,9 +58,9 @@ class Rule
   def get_key(request)
     path_url = @options[:include_host] ? request.host.to_s + request.path.to_s : request.path
     key = (@options[:per_url] ? path_url : @options[:match].to_s)
-    key = key + request.ip.to_s if @options[:per_ip]
-    key = key + request.env['HTTP_X_FORWARDED_FOR'].to_s if @options[:per_xff_ip]
-    key = key + request.params[@options[:token].to_s] if @options[:token]
+    key = "#{key}#{request.ip}" if @options[:per_ip]
+    key = "#{key}#{request.env['HTTP_X_FORWARDED_FOR']}" if @options[:per_xff_ip]
+    key = "#{key}#{request.params[@options[:token].to_s]}" if @options[:token]
     key
   end
 end
