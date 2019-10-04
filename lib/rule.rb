@@ -1,5 +1,3 @@
-# frozen_string_literal: true
-
 class Rule
 
   def initialize(options)
@@ -13,7 +11,7 @@ class Rule
       :token => false,
       :per_xff_ip => false
     }
-    @options = default_options.merge(options)
+    @options = default_options.merge!(options)
 
   end
 
@@ -56,11 +54,11 @@ class Rule
   end
 
   def get_key(request)
-    path_url = @options[:include_host] ? request.host.to_s + request.path.to_s : request.path
+    path_url = @options[:include_host] ? "#{request.host}#{request.path}" : request.path
     key = (@options[:per_url] ? path_url : @options[:match].to_s)
-    key = "#{key}#{request.ip}" if @options[:per_ip]
-    key = "#{key}#{request.env['HTTP_X_FORWARDED_FOR']}" if @options[:per_xff_ip]
-    key = "#{key}#{request.params[@options[:token].to_s]}" if @options[:token]
+    key << request.ip.to_s if @options[:per_ip]
+    key << request.env['HTTP_X_FORWARDED_FOR'].to_s if @options[:per_xff_ip]
+    key << request.params[@options[:token].to_s] if @options[:token]
     key
   end
 end
