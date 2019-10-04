@@ -38,14 +38,18 @@ config/application.rb
          r.define_rule(:match => '/freq/rph', :metric => :rph, :type => :frequency, :limit => 60)
          r.define_rule(:match => '/freq/rpd', :metric => :rpd, :type => :frequency, :limit => 1440)
          r.define_rule(:match => '/header', :metric => :rph, :type => :frequency, :limit => 60)
-
+         r.set_support_email(AppConfig[:from_email])
        end
 
      end
 
+set_support_email
+-----------------
+
+This option will be used to set the support email address on the rendered HTML page.
 
 Rule Options
-----------------
+------------
 
 ### match
 
