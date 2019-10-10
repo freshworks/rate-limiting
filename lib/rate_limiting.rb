@@ -174,7 +174,7 @@ class RateLimiting
   end
 
   def stringified_ip(ip)
-    @ip ||= (ip.delete(".").to_i % 1000).to_s
+    @ip ||= (ip.delete(".").to_i % 1000)
   end
 
   def logger
