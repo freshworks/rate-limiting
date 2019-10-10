@@ -1,8 +1,8 @@
-require "json"
+# frozen_string_literal: true
+
 require "rule"
 require "ip_range"
 require "rate_limit_html"
-require 'timeout'
 
 class RateLimiting
 
@@ -10,11 +10,13 @@ class RateLimiting
   RequestTimeoutRateLimit = 2
   IPRange = IpRange.new
   DDOS = "ddos"
+
   def initialize(app, &block)
     @app = app
     @logger =  nil
     @rules = []
     @cache = {}
+    @support_email = nil
     block.call(self)
   end
 
@@ -26,7 +28,7 @@ class RateLimiting
   end
 
   def prefetch_cache_values(request)
-    @whitelisted = @blacklisted = @ddosed = nil
+    @ip = @whitelisted = @blacklisted = @ddosed = nil
     return unless cache.respond_to?(:pipelined)
 
     begin
@@ -35,7 +37,7 @@ class RateLimiting
         cache.hexists(partioning_hash_blacklist(request.ip), request.ip)
         cache.get(DDOS)
       end
-    rescue Exception => e
+    rescue => e
       NewRelic::Agent.notice_error(e)
       return
     end
@@ -55,7 +57,7 @@ class RateLimiting
     when "text/xml"         then message, type  = xml_error("403", "Rate Limit Exceeded"), "text/xml"
     when "application/json" then  message, type  = ["Rate Limit Exceeded"].to_json, "application/json"
     else
-      message, type  = [RateLimitHtml::HTML], "text/html"
+      message, type  = [RateLimitHtml::HTML % {support_email: @support_email}], "text/html"
     end
     [403, {"Content-Type" => type}, message]
   end
@@ -66,6 +68,10 @@ class RateLimiting
 
   def set_cache(cache)
     @cache = cache
+  end
+
+  def set_support_email(email)
+    @support_email = email
   end
 
   def cache
@@ -160,11 +166,15 @@ class RateLimiting
   end
 
   def partioning_hash(ip)
-    "whitelist"+(ip.gsub(".","").to_i%1000).to_s
+    "whitelist#{stringified_ip(ip)}"
   end
 
   def partioning_hash_blacklist(ip)
-    "blacklist"+(ip.gsub(".","").to_i%1000).to_s
+    "blacklist#{stringified_ip(ip)}"
+  end
+
+  def stringified_ip(ip)
+    @ip ||= (ip.delete(".").to_i % 1000)
   end
 
   def logger
@@ -180,7 +190,7 @@ class RateLimiting
       else
         true
       end
-    rescue Exception => e
+    rescue => e
       NewRelic::Agent.notice_error(e)
       true
     end
