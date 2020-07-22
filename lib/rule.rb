@@ -59,6 +59,10 @@ class Rule
     key = key + request.ip.to_s if @options[:per_ip]
     key = key + request.env['HTTP_X_FORWARDED_FOR'].to_s if @options[:per_xff_ip]
     key = key + request.params[@options[:token].to_s] if @options[:token]
+    Rails.logger.info "came in :: #{@options.inspect}"
+    Rails.logger.info "came in :: #{request.ip.to_s}"
+    Rails.logger.info "came in :: #{request.env['HTTP_X_FORWARDED_FOR']}"
+    Rails.logger.info "came in :: key #{key.inspect}"
     key
   end
 end
