@@ -61,6 +61,7 @@ class RateLimiting
   end
 
   def define_rule(options)
+    Rails.logger.info "came in :: define_rule"
     @rules << Rule.new(options)
   end
 
