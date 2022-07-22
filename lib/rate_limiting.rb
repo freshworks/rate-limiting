@@ -138,20 +138,13 @@ class RateLimiting
     end
   end
 
-  def whitelist?(key, xff_if_based = false)
-    if xff_ip_based
-      return reload_whitelisted(key)
-    end
+  def whitelist?(key)
     return @whitelisted unless @whitelisted.nil?
-    reload_whitelisted(key)
-  end
-
-  def reload_whitelisted(key)
     hash_key = partioning_hash(key)
     field = key
     cache_hexists(hash_key,field)
   end
-
+    
   def blacklist?(key)
     return @blacklisted unless @blacklisted.nil?
     hash_key = partioning_hash_blacklist(key)
@@ -184,7 +177,7 @@ class RateLimiting
       return false if blacklisting_ip(request)
       if rule = find_matching_rule(request)
         xff_ip = rule.get_xff_ip(request)
-        return true if xff_ip.present? && whitelist?(xff_ip, true)
+        return true if xff_ip.present? && (@whitelist = nil || whitelist?(xff_ip))
         apply_rule(request, rule)
       else
         true
