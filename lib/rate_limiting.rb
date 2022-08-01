@@ -173,10 +173,12 @@ class RateLimiting
 
   def allowed?(request)
     begin
+      logger.info "Rate limiting Gem , Request IP :#{request.ip}"
       return true if whitelist?(request.ip)
       return false if blacklisting_ip(request)
       if rule = find_matching_rule(request)
         xff_ip = rule.get_xff_ip(request)
+        logger.info "Rate limiting Gem , Request XFF IP :#{xff_ip}"
         return true if xff_ip.present? && (@whitelist = nil || whitelist?(xff_ip))
         apply_rule(request, rule)
       else
