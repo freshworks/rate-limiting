@@ -61,5 +61,9 @@ class Rule
     key = key + request.params[@options[:token].to_s] if @options[:token]
     key
   end
-end
 
+  def get_xff_ip(request)
+    return request.env['HTTP_X_FORWARDED_FOR'].to_s if @options[:per_xff_ip]
+    nil
+  end
+end
