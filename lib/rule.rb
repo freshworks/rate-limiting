@@ -96,6 +96,7 @@ class Rule
     end
   end
 
+  # Note: custom_block_action are triggered as an extra step, this will not replace default block response handling
   def custom_block_action(request,current_count,reset_time,limit)
     if @options[:custom_block_action]
       CustomRateLimit.send(@options[:custom_block_action], request,current_count,reset_time,limit)
