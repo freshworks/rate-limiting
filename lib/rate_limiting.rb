@@ -10,6 +10,8 @@ class RateLimiting
   RequestTimeoutRateLimit = 2
   IPRange = IpRange.new
   DDOS = "ddos"
+  BLOCKED_RESPONSE_HEADERS = ['Retry-After'].freeze
+
   def initialize(app, &block)
     @app = app
     @logger =  nil
@@ -34,7 +36,7 @@ class RateLimiting
     else
       message, type  = [@html_message || RateLimitHtml::HTML], "text/html"
     end
-    [@status_code || 403, {"Content-Type" => type}, message]
+    [@status_code || 403, {"Content-Type" => type}.merge(@common_limit_headers), message]
   end
 
   def define_rule(options)
@@ -155,6 +157,7 @@ class RateLimiting
       @status_code = nil
       @text_message = nil
       @html_message = nil
+      @common_limit_headers = nil
 
       return true if whitelist?(request.ip)
       return false if blacklisting_ip(request)
@@ -206,7 +209,11 @@ class RateLimiting
           # within rate limit
           response = get_header(request_count + 1, reset, rule_limit)
         else
+          # Only case for request rejected
           logger.info "[#{self}] #{request.ip}:#{request.host}/#{request.path}: Rate limited; request rejected."
+          compute_common_limit_headers(reset)
+          rule.custom_block_action(request,request_count,reset,rule_limit)
+
           return false
         end
       else
@@ -221,8 +228,20 @@ class RateLimiting
     response
   end
 
+  def compute_common_limit_headers(reset_time)
+    # Common limit headers are added to request for both successful and blocked cases
+    retry_in_seconds = (Time.at(reset_time) - Time.now).round
+
+    @common_limit_headers = { 'Retry-After' => retry_in_seconds.to_s }
+  end
+
   def get_header(request_count, reset, limit)
-    {'x-RateLimit-Limit' => limit.to_s, 'x-RateLimit-Remaining' => (limit - request_count).to_s, 'x-RateLimit-Reset' => reset.strftime("%d%m%y%H%M%S") }
+    # These headers are not added to request if request is blocked
+    success_status_limit_headers = { 'x-RateLimit-Limit' => limit.to_s,
+                                     'x-RateLimit-Remaining' => (limit - request_count).to_s,
+                                     'x-RateLimit-Reset' => reset.strftime("%d%m%y%H%M%S") }
+
+    compute_common_limit_headers(reset).merge(success_status_limit_headers)
   end
 
   def xml_error(code, message)

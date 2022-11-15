@@ -96,5 +96,11 @@ class Rule
     end
   end
 
+  def custom_block_action(request,current_count,reset_time,limit)
+    if @options[:custom_block_action]
+      CustomRateLimit.send(@options[:custom_block_action], request,current_count,reset_time,limit)
+    end
+  end
+
 end
 
