@@ -36,7 +36,7 @@ class RateLimiting
     else
       message, type  = [@html_message || RateLimitHtml::HTML], "text/html"
     end
-    [@status_code || 403, {"Content-Type" => type}.merge(@common_limit_headers), message]
+    [@status_code || 403, {"Content-Type" => type}.merge(@block_headers), message]
   end
 
   def define_rule(options)
@@ -211,7 +211,7 @@ class RateLimiting
         else
           # Only case for request rejected
           logger.info "[#{self}] #{request.ip}:#{request.host}/#{request.path}: Rate limited; request rejected."
-          compute_common_limit_headers(reset)
+          compute_block_limit_headers(reset)
           rule.custom_block_action(request,request_count,reset,rule_limit)
 
           return false
@@ -228,20 +228,18 @@ class RateLimiting
     response
   end
 
-  def compute_common_limit_headers(reset_time)
+  def compute_block_limit_headers(reset_time)
     # Common limit headers are added to request for both successful and blocked cases
     retry_in_seconds = (Time.at(reset_time) - Time.now).round
 
-    @common_limit_headers = { 'Retry-After' => retry_in_seconds.to_s }
+    @block_headers = { 'Retry-After' => retry_in_seconds.to_s }
   end
 
   def get_header(request_count, reset, limit)
     # These headers are not added to request if request is blocked
-    success_status_limit_headers = { 'x-RateLimit-Limit' => limit.to_s,
-                                     'x-RateLimit-Remaining' => (limit - request_count).to_s,
-                                     'x-RateLimit-Reset' => reset.strftime("%d%m%y%H%M%S") }
-
-    compute_common_limit_headers(reset).merge(success_status_limit_headers)
+    { 'x-RateLimit-Limit' => limit.to_s,
+      'x-RateLimit-Remaining' => (limit - request_count).to_s,
+      'x-RateLimit-Reset' => reset.strftime("%d%m%y%H%M%S") }
   end
 
   def xml_error(code, message)
