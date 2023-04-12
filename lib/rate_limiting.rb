@@ -184,11 +184,11 @@ class RateLimiting
   end
 
   def find_matching_rule(request)
-    match_rule=[]
+    matched_rule=[]
     @rules.each do |rule|
-      match_rule << rule if request.path =~ rule.match
+      matched_rule << rule if request.path =~ rule.match
     end
-    return match_rule
+    return matched_rule
   end
 
   def apply_rule(request, rule)
@@ -248,6 +248,7 @@ class RateLimiting
       'x-RateLimit-Reset' => reset.strftime("%d%m%y%H%M%S") }
   end
 
+  # added header prefix to distinguish between per-min and per-hours ratelimit.
   def append_header_prefix(prefix, headers)
     Hash[headers.map{|k,v| ["#{prefix}#{k}",v]}]
   end
