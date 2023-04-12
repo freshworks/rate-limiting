@@ -158,16 +158,21 @@ class RateLimiting
       @text_message = nil
       @html_message = nil
       @common_limit_headers = nil
+      success_response_headers = {}
 
       return true if whitelist?(request.ip)
       return false if blacklisting_ip(request)
-      if rule = find_matching_rule(request)
-        is_allowed = apply_rule(request, rule)
-        @status_code = rule.get_status_code
-        return is_allowed
-      else
-        true
-      end
+      rule_list = find_matching_rule(request)
+        rule_list.each do |rule|
+          is_allowed = apply_rule(request, rule)
+          @status_code = rule.get_status_code
+          if is_allowed==false
+            return is_allowed
+          else
+            success_response_headers.merge!(is_allowed)
+          end
+        end
+        return success_response_headers
     rescue Exception => e
       NewRelic::Agent.notice_error(e)
       true
@@ -179,10 +184,11 @@ class RateLimiting
   end
 
   def find_matching_rule(request)
+    match_rule=[]
     @rules.each do |rule|
-      return rule if request.path =~ rule.match
+      match_rule << rule if request.path =~ rule.match
     end
-    nil
+    return match_rule
   end
 
   def apply_rule(request, rule)
@@ -225,7 +231,8 @@ class RateLimiting
       response = get_header(1, rule.get_expiration, rule_limit)
       cache_setex(key, rule.get_expiration_sec, "1:#{rule.get_expiration.to_i}:#{rule_limit}")
     end
-    response
+    header_prefix=rule.get_header_prefix
+    append_header_prefix(header_prefix, response)
   end
 
   def compute_block_limit_headers(reset_time)
@@ -237,9 +244,13 @@ class RateLimiting
 
   def get_header(request_count, reset, limit)
     # These headers are not added to request if request is blocked
-    { 'x-RateLimit-Limit' => limit.to_s,
+    { "x-RateLimit-Limit" => limit.to_s,
       'x-RateLimit-Remaining' => (limit - request_count).to_s,
       'x-RateLimit-Reset' => reset.strftime("%d%m%y%H%M%S") }
+  end
+
+  def append_header_prefix(prefix, headers)
+    Hash[headers.map{|k,v| ["#{prefix}#{k}",v]}]
   end
 
   def xml_error(code, message)

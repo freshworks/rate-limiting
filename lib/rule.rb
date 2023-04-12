@@ -11,7 +11,8 @@ class Rule
       :per_ip => true,
       :per_url => false,
       :per_host => false,
-      :token => false
+      :token => false,
+      :header_prefix => nil
     }
     @options = default_options.merge(options)
 
@@ -70,6 +71,7 @@ class Rule
     key = (@options[:per_url] ? request.path : @options[:match].to_s)
     key = key + request.ip.to_s if @options[:per_ip]
     key = key + ':' + request.host.to_s if @options[:per_host]
+    key = key + ':' + @options[:metric].to_s if @options[:metric]
 
     request_params = request.params.present? ? request.params : request.env["action_dispatch.request.request_parameters"]
     key = key + ':' + request_params[@options[:token].to_s] if @options[:token]
@@ -81,7 +83,9 @@ class Rule
   def get_status_code
     @options[:status_code]
   end
-
+  def get_header_prefix
+    @options[:header_prefix]
+  end
   def get_param_key_value params, key_path
     if params.is_a? Hash
       key = key_path.delete_at(0)
