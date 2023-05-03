@@ -166,7 +166,7 @@ class RateLimiting
       rule_list.each do |rule|
         is_allowed = apply_rule(request, rule)
         @status_code = rule.get_status_code
-        if is_allowed==false
+        if is_allowed==false && rule.is_enabled==true
           return is_allowed
         else
           success_response_headers.merge!(is_allowed)
@@ -193,7 +193,7 @@ class RateLimiting
 
   def apply_rule(request, rule)
     if rule.skip_throttling? request
-      logger.debug "[#{self}] #{request.ip}:#{request.host}/#{request.path}: Rate limiting skipped"
+      logger.debug "[#{self}] enalbed: #{rule.is_enabled} #{request.ip}:#{request.host}/#{request.path}: Rate limiting skipped"
       return true
     end
 
