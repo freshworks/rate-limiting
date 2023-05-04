@@ -166,7 +166,7 @@ class RateLimiting
       rule_list.each do |rule|
         is_allowed = apply_rule(request, rule)
         @status_code = rule.get_status_code
-        next if rule.dry_run==true
+        next if rule.get_dry_run==true
 
         if is_allowed==false
           return is_allowed
@@ -195,14 +195,14 @@ class RateLimiting
 
   def apply_rule(request, rule)
     if rule.skip_throttling? request
-      logger.debug "[#{self}] #{rule.dry_run ? "[DRYRUN]" : ""} #{request.ip}:#{request.host}/#{request.path}: Rate limiting skipped"#{request.ip}:#{request.host}/#{request.path}: Rate limiting skipped"
+      logger.debug "[#{self}] #{rule.get_dry_run ? "[DRYRUN]" : ""} #{request.ip}:#{request.host}/#{request.path}: Rate limiting skipped"#{request.ip}:#{request.host}/#{request.path}: Rate limiting skipped"
       return true
     end
 
     key = rule.get_key(request)
     record = cache_get(key)
     if record
-      logger.debug "[#{self}] #{rule.dry_run ? "[DRYRUN]" : ""} #{request.ip}:#{request.host}/#{request.path}: Rate limiting entry: '#{key}' => #{record}"
+      logger.debug "[#{self}] #{rule.get_dry_run ? "[DRYRUN]" : ""} #{request.ip}:#{request.host}/#{request.path}: Rate limiting entry: '#{key}' => #{record}"
 
       current_time = Time.now
       records = record.split(":")

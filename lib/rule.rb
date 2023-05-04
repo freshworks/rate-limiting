@@ -8,6 +8,7 @@ class Rule
       :metric => :rph,
       :type => :frequency,
       :limit => 100,
+      :dry_run =>false,
       :per_ip => true,
       :per_url => false,
       :per_host => false,
@@ -85,6 +86,9 @@ class Rule
   end
   def get_header_prefix
     @options[:header_prefix]
+  end
+  def get_dry_run
+    @options[:dry_run]
   end
   def get_param_key_value params, key_path
     if params.is_a? Hash
