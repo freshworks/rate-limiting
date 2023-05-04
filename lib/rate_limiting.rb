@@ -166,7 +166,9 @@ class RateLimiting
       rule_list.each do |rule|
         is_allowed = apply_rule(request, rule)
         @status_code = rule.get_status_code
-        if is_allowed==false && rule.is_enabled==true
+        next if rule.dry_run==true
+
+        if is_allowed==false
           return is_allowed
         else
           success_response_headers.merge!(is_allowed)
@@ -193,14 +195,14 @@ class RateLimiting
 
   def apply_rule(request, rule)
     if rule.skip_throttling? request
-      logger.debug "[#{self}] enalbed: #{rule.is_enabled} #{request.ip}:#{request.host}/#{request.path}: Rate limiting skipped"
+      logger.debug "[#{self}] #{rule.dry_run ? "[DRYRUN]" : ""} #{request.ip}:#{request.host}/#{request.path}: Rate limiting skipped"#{request.ip}:#{request.host}/#{request.path}: Rate limiting skipped"
       return true
     end
 
     key = rule.get_key(request)
     record = cache_get(key)
     if record
-      logger.debug "[#{self}] #{request.ip}:#{request.host}/#{request.path}: Rate limiting entry: '#{key}' => #{record}"
+      logger.debug "[#{self}] #{rule.dry_run ? "[DRYRUN]" : ""} #{request.ip}:#{request.host}/#{request.path}: Rate limiting entry: '#{key}' => #{record}"
 
       current_time = Time.now
       records = record.split(":")
@@ -216,7 +218,7 @@ class RateLimiting
           response = get_header(request_count + 1, reset, rule_limit)
         else
           # Only case for request rejected
-          logger.info "[#{self}] #{request.ip}:#{request.host}/#{request.path}: Rate limited; request rejected."
+          logger.info "[#{self}] #{rule.dry_run ? "[DRYRUN]" : ""} #{request.ip}:#{request.host}/#{request.path}: Rate limited; request rejected."
           compute_block_limit_headers(reset)
           rule.custom_block_action(request,request_count,reset,rule_limit)
 
