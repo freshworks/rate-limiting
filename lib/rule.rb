@@ -84,12 +84,15 @@ class Rule
   def get_status_code
     @options[:status_code]
   end
+  
   def get_header_prefix
     @options[:header_prefix]
   end
+
   def get_dry_run
     @options[:dry_run]
   end
+
   def get_param_key_value params, key_path
     if params.is_a? Hash
       key = key_path.delete_at(0)
