@@ -159,14 +159,13 @@ class RateLimiting
       @html_message = nil
       @common_limit_headers = nil
       success_response_headers = {}
-
       return true if whitelist?(request.ip)
       return false if blacklisting_ip(request)
       rule_list = find_matching_rule(request)
       rule_list.each do |rule|
         is_allowed = apply_rule(request, rule)
         @status_code = rule.get_status_code
-        next if rule.get_dry_run==true
+        next if rule.get_dry_run
 
         if is_allowed==false
           return is_allowed
@@ -218,7 +217,7 @@ class RateLimiting
           response = get_header(request_count + 1, reset, rule_limit)
         else
           # Only case for request rejected
-          logger.info "[#{self}] #{rule.dry_run ? "[DRYRUN]" : ""} #{request.ip}:#{request.host}/#{request.path}: Rate limited; request rejected."
+          logger.info "[#{self}] #{rule.get_dry_run ? "[DRYRUN]" : ""} #{request.ip}:#{request.host}/#{request.path}: Rate limited; request rejected."
           compute_block_limit_headers(reset)
           rule.custom_block_action(request,request_count,reset,rule_limit)
 
