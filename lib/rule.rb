@@ -8,7 +8,8 @@ class Rule
       :metric => :rph,
       :type => :frequency,
       :limit => 100,
-      :dry_run =>false,
+      :dry_run => false,
+      :custom_logger => false,
       :per_ip => true,
       :per_url => false,
       :per_host => false,
@@ -91,6 +92,10 @@ class Rule
 
   def get_dry_run
     @options[:dry_run]
+  end
+
+  def get_custom_logger
+    @options[:custom_logger]
   end
 
   def get_param_key_value params, key_path

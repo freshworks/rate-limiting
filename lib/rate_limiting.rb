@@ -176,6 +176,7 @@ class RateLimiting
       return success_response_headers
     rescue Exception => e
       NewRelic::Agent.notice_error(e)
+      logger.info "rate limmiting error -- #{e}"
       true
     end
   end
@@ -218,6 +219,9 @@ class RateLimiting
         else
           # Only case for request rejected
           logger.info "[#{self}] #{rule.get_dry_run ? "[DRYRUN]" : ""} #{request.ip}:#{request.host}/#{request.path}: Rate limited; request rejected."
+          if rule.custom_logger
+            return true
+          end
           compute_block_limit_headers(reset)
           rule.custom_block_action(request,request_count,reset,rule_limit)
 
