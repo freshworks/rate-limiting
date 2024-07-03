@@ -95,7 +95,7 @@ class Rule
   end
 
   def get_dry_run_partial
-    @options[:dry_run_partial]
+    @options[:dry_run_partial] ? CustomRateLimit.send(@options[:get_dry_run_partial], request) : false
   end
 
   def get_param_key_value params, key_path
