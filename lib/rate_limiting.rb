@@ -194,15 +194,22 @@ class RateLimiting
   end
 
   def apply_rule(request, rule)
+    dry_run_variable=""
+    if rule.get_dry_run
+      dry_run_variable= "[DRYRUN]"
+    elsif rule.dry_run_partial
+      dry_run_variable= "[DRYRUN_PARTIAL]"
+    end
+
     if rule.skip_throttling? request
-      logger.debug "[#{self}] #{rule.get_dry_run ? "[DRYRUN]" : ""} #{request.ip}:#{request.host}/#{request.path}: Rate limiting skipped"#{request.ip}:#{request.host}/#{request.path}: Rate limiting skipped"
+      logger.debug "[#{self}] #{dry_run_variable} #{request.ip}:#{request.host}/#{request.path}: Rate limiting skipped"#{request.ip}:#{request.host}/#{request.path}: Rate limiting skipped"
       return true
     end
 
     key = rule.get_key(request)
     record = cache_get(key)
     if record
-      logger.debug "[#{self}] #{rule.get_dry_run ? "[DRYRUN]" : ""} #{request.ip}:#{request.host}/#{request.path}: Rate limiting entry: '#{key}' => #{record}"
+      logger.debug "[#{self}] #{dry_run_variable} #{request.ip}:#{request.host}/#{request.path}: Rate limiting entry: '#{key}' => #{record}"
 
       current_time = Time.now
       records = record.split(":")
@@ -218,8 +225,8 @@ class RateLimiting
           response = get_header(request_count + 1, reset, rule_limit)
         else
           # Only case for request rejected
-          logger.info "[#{self}] #{rule.get_dry_run ? "[DRYRUN]" : ""} #{request.ip}:#{request.host}/#{request.path}: Rate limited; request rejected."
-          if rule.custom_logger
+          logger.info "[#{self}] #{dry_run_variable} #{request.ip}:#{request.host}/#{request.path}: Rate limited; request rejected."
+          if rule.dry_run_partial
             return true
           end
           compute_block_limit_headers(reset)

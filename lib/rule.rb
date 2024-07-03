@@ -9,7 +9,7 @@ class Rule
       :type => :frequency,
       :limit => 100,
       :dry_run => false,
-      :custom_logger => false,
+      :dry_run_partial => false,
       :per_ip => true,
       :per_url => false,
       :per_host => false,
@@ -94,8 +94,8 @@ class Rule
     @options[:dry_run]
   end
 
-  def get_custom_logger
-    @options[:custom_logger]
+  def get_dry_run_partial
+    @options[:dry_run_partial]
   end
 
   def get_param_key_value params, key_path
