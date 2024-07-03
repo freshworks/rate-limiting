@@ -197,7 +197,7 @@ class RateLimiting
     dry_run_variable=""
     if rule.get_dry_run
       dry_run_variable= "[DRYRUN]"
-    elsif rule.dry_run_partial
+    elsif rule.get_dry_run_partial request
       dry_run_variable= "[DRYRUN_PARTIAL]"
     end
 
@@ -226,7 +226,7 @@ class RateLimiting
         else
           # Only case for request rejected
           logger.info "[#{self}] #{dry_run_variable} #{request.ip}:#{request.host}/#{request.path}: Rate limited; request rejected."
-          if rule.dry_run_partial
+          if rule.get_dry_run_partial request
             return true
           end
           compute_block_limit_headers(reset)
